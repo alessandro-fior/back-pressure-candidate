@@ -1,0 +1,114 @@
+openapi: 3.1.0
+info:
+  title: Back Pressure Workload Generator API
+  version: 0.1.0-phase1a
+  description: Phase 1A contract freeze for the Scala workload-generator service.
+servers:
+  - url: http://workload-generator:8081
+paths:
+  /internal/generator/config:
+    put:
+      operationId: putGeneratorConfig
+      summary: Apply generator settings derived from the current scenario.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - scenarioId
+                - targetJobsPerSecond
+                - numberRange
+                - imageWidthPx
+                - imageHeightPx
+                - maxInFlight
+                - decoderBaseUrl
+              properties:
+                scenarioId:
+                  type: string
+                targetJobsPerSecond:
+                  type: number
+                  exclusiveMinimum: 0
+                numberRange:
+                  type: object
+                  additionalProperties: false
+                  required: [min, max]
+                  properties:
+                    min:
+                      type: integer
+                    max:
+                      type: integer
+                imageWidthPx:
+                  type: integer
+                  minimum: 32
+                imageHeightPx:
+                  type: integer
+                  minimum: 16
+                maxInFlight:
+                  type: integer
+                  minimum: 1
+                decoderBaseUrl:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Applied generator configuration.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [scenarioId, status]
+                properties:
+                  scenarioId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [configured]
+  /internal/generator/start:
+    post:
+      operationId: startGenerator
+      summary: Start workload generation.
+      responses:
+        '202':
+          description: Generator start accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [starting, running]
+  /internal/generator/stop:
+    post:
+      operationId: stopGenerator
+      summary: Stop workload generation.
+      responses:
+        '202':
+          description: Generator stop accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [stopping, idle]
+  /internal/generator/metrics:
+    get:
+      operationId: getGeneratorMetrics
+      summary: Return generator-local operational metrics.
+      responses:
+        '200':
+          description: Current generator metrics snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/metrics-snapshot.schema.json

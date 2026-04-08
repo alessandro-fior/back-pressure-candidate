@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kynetics.example/back-pressure/contracts/schemas/workload-job.schema.json",
+  "title": "WorkloadJob",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "jobId",
+    "scenarioId",
+    "sequence",
+    "expectedNumber",
+    "imagePngBase64",
+    "createdAt"
+  ],
+  "properties": {
+    "jobId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scenarioId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "expectedNumber": {
+      "type": "integer"
+    },
+    "imagePngBase64": {
+      "type": "string",
+      "contentEncoding": "base64"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

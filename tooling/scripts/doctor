@@ -1,0 +1,63 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
+REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd -P)
+CONTAINER_RUNTIME=${CONTAINER_RUNTIME:-docker}
+DEV_SCRIPT="$REPO_ROOT/tooling/scripts/dev"
+DOCKERFILE="$REPO_ROOT/tooling/docker/dev-toolchain/Dockerfile"
+status=0
+
+report_problem() {
+    status=1
+    printf 'error: %s\n' "$1" >&2
+}
+
+require_command() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        report_problem "$2"
+    fi
+}
+
+require_file() {
+    if [ ! -f "$1" ]; then
+        report_problem "$2"
+    fi
+}
+
+require_command git "Git is required on the host. Install Git and retry."
+require_command "$CONTAINER_RUNTIME" "Container runtime '$CONTAINER_RUNTIME' was not found. Install Docker or set CONTAINER_RUNTIME to a compatible runtime."
+
+if command -v "$CONTAINER_RUNTIME" >/dev/null 2>&1; then
+    if ! "$CONTAINER_RUNTIME" info >/dev/null 2>&1; then
+        report_problem "Cannot talk to '$CONTAINER_RUNTIME'. Start Docker Desktop or the container daemon and retry."
+    fi
+fi
+
+require_file "$DOCKERFILE" "Missing toolchain Dockerfile at $DOCKERFILE."
+require_file "$DEV_SCRIPT" "Missing launcher script at $DEV_SCRIPT."
+
+if [ -f "$DEV_SCRIPT" ] && [ ! -x "$DEV_SCRIPT" ]; then
+    report_problem "$DEV_SCRIPT exists but is not executable. Run: chmod +x $DEV_SCRIPT"
+fi
+
+require_file "$REPO_ROOT/gradlew" "Missing $REPO_ROOT/gradlew. Add the Gradle wrapper before running the canonical toolchain path."
+if [ -f "$REPO_ROOT/gradlew" ] && [ ! -x "$REPO_ROOT/gradlew" ]; then
+    report_problem "$REPO_ROOT/gradlew exists but is not executable. Run: chmod +x $REPO_ROOT/gradlew"
+fi
+require_file "$REPO_ROOT/gradle/wrapper/gradle-wrapper.properties" "Missing Gradle wrapper metadata at $REPO_ROOT/gradle/wrapper/gradle-wrapper.properties."
+require_file "$REPO_ROOT/gradle/wrapper/gradle-wrapper.jar" "Missing Gradle wrapper jar at $REPO_ROOT/gradle/wrapper/gradle-wrapper.jar."
+
+if [ "$status" -ne 0 ]; then
+    printf 'doctor failed. Fix the issue(s) above, then rerun %s\n' "$0" >&2
+    exit "$status"
+fi
+
+printf 'Running canonical toolchain check through %s\n' "$DEV_SCRIPT" >&2
+
+if ! "$DEV_SCRIPT" toolchainCheck; then
+    printf 'error: toolchainCheck failed through the Dockerized Gradle path. Review the output above and fix the reported problem.\n' >&2
+    exit 1
+fi
+
+printf 'doctor passed.\n'

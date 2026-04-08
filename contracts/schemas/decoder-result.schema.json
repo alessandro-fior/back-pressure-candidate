@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kynetics.example/back-pressure/contracts/schemas/decoder-result.schema.json",
+  "title": "DecoderResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "jobId",
+    "scenarioId",
+    "expectedNumber",
+    "decodedNumber",
+    "confidence",
+    "status",
+    "processing"
+  ],
+  "properties": {
+    "jobId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scenarioId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expectedNumber": {
+      "type": "integer"
+    },
+    "decodedNumber": {
+      "type": ["integer", "null"]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["decoded", "rejected", "failed"]
+    },
+    "processing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enqueueWaitMs",
+        "decodeLatencyMs",
+        "totalLatencyMs",
+        "workerInstanceId",
+        "completedAt"
+      ],
+      "properties": {
+        "enqueueWaitMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "decodeLatencyMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalLatencyMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "workerInstanceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

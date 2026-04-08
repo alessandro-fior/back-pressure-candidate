@@ -1,0 +1,124 @@
+openapi: 3.1.0
+info:
+  title: Back Pressure Control Plane API
+  version: 0.1.0-phase1a
+  description: Phase 1A contract freeze for the Spring Boot control-plane service.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/overview:
+    get:
+      operationId: getOverview
+      summary: Return the aggregated dashboard snapshot.
+      responses:
+        '200':
+          description: Current system overview.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - scenario
+                  - generatorMetrics
+                  - workerMetrics
+                  - recentResults
+                  - status
+                properties:
+                  scenario:
+                    $ref: ../schemas/scenario-config.schema.json
+                  generatorMetrics:
+                    $ref: ../schemas/metrics-snapshot.schema.json
+                  workerMetrics:
+                    $ref: ../schemas/metrics-snapshot.schema.json
+                  recentResults:
+                    type: array
+                    items:
+                      $ref: ../schemas/decoder-result.schema.json
+                  status:
+                    type: string
+                    enum: [idle, running, stopping]
+  /api/v1/scenario/current:
+    put:
+      operationId: putCurrentScenario
+      summary: Create or replace the current in-memory scenario configuration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/scenario-config.schema.json
+      responses:
+        '200':
+          description: Accepted scenario configuration.
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/scenario-config.schema.json
+  /api/v1/scenario/current/start:
+    post:
+      operationId: startCurrentScenario
+      summary: Start the current scenario.
+      responses:
+        '202':
+          description: Scenario start request accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status, scenarioId]
+                properties:
+                  status:
+                    type: string
+                    enum: [starting, running]
+                  scenarioId:
+                    type: string
+  /api/v1/scenario/current/stop:
+    post:
+      operationId: stopCurrentScenario
+      summary: Stop the current scenario.
+      responses:
+        '202':
+          description: Scenario stop request accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status, scenarioId]
+                properties:
+                  status:
+                    type: string
+                    enum: [stopping, idle]
+                  scenarioId:
+                    type: string
+  /api/v1/results/recent:
+    get:
+      operationId: getRecentResults
+      summary: Return recent decode results as seen by the control plane.
+      responses:
+        '200':
+          description: Recent decoded results.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ../schemas/decoder-result.schema.json
+  /actuator/health:
+    get:
+      operationId: getControlPlaneHealth
+      summary: Health endpoint for local orchestration.
+      responses:
+        '200':
+          description: Control-plane health payload.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [status]
+                properties:
+                  status:
+                    type: string

@@ -1,0 +1,84 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
+REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd -P)
+OUTPUT_ROOT=${1:-"$REPO_ROOT/dist/candidate-bundle"}
+BUNDLE_NAME=${2:-"back-pressure-candidate"}
+STAGING_DIR="$OUTPUT_ROOT/$BUNDLE_NAME"
+ARCHIVE_PATH="$OUTPUT_ROOT/$BUNDLE_NAME.tar.gz"
+export COPYFILE_DISABLE=1
+
+die() {
+    printf 'error: %s\n' "$1" >&2
+    exit 1
+}
+
+require_file() {
+    [ -f "$1" ] || die "Missing required file: $1"
+}
+
+require_command() {
+    command -v "$1" >/dev/null 2>&1 || die "Required command '$1' was not found on PATH."
+}
+
+require_command tar
+
+require_file "$REPO_ROOT/assignment/README.md"
+require_file "$REPO_ROOT/assignment/DEVELOPMENT.md"
+require_file "$REPO_ROOT/assignment/FEATURE-REQUEST.md"
+require_file "$REPO_ROOT/assignment/copilot-instructions.md"
+
+mkdir -p "$OUTPUT_ROOT"
+rm -rf "$STAGING_DIR" "$ARCHIVE_PATH"
+mkdir -p "$STAGING_DIR/.github"
+
+(
+    cd "$REPO_ROOT"
+    tar -cf - \
+        --exclude='./.git' \
+        --exclude='./.github/agents' \
+        --exclude='./.github/copilot-instructions.md' \
+        --exclude='./.gradle' \
+        --exclude='./.gradle-user-home' \
+        --exclude='./.idea' \
+        --exclude='./.java' \
+        --exclude='./.kotlin' \
+        --exclude='./.metals' \
+        --exclude='./.npm-cache' \
+        --exclude='./.pulumi-home' \
+        --exclude='./.pulumi-home-docker' \
+        --exclude='./.scala-build' \
+        --exclude='./.tooling' \
+        --exclude='./.vscode' \
+        --exclude='./.bloop' \
+        --exclude='./.docker' \
+        --exclude='./assignment' \
+        --exclude='./._*' \
+        --exclude='./**/.DS_Store' \
+        --exclude='./**/build' \
+        --exclude='./**/node_modules' \
+        --exclude='./**/.gradle' \
+        --exclude='./**/target' \
+        --exclude='./dist' \
+        --exclude='./docs' \
+        --exclude='./AGENTS.md' \
+        .
+) | (
+    cd "$STAGING_DIR"
+    tar -xf -
+)
+
+cp "$REPO_ROOT/assignment/README.md" "$STAGING_DIR/README.md"
+cp "$REPO_ROOT/assignment/DEVELOPMENT.md" "$STAGING_DIR/DEVELOPMENT.md"
+cp "$REPO_ROOT/assignment/FEATURE-REQUEST.md" "$STAGING_DIR/FEATURE-REQUEST.md"
+cp "$REPO_ROOT/assignment/copilot-instructions.md" "$STAGING_DIR/.github/copilot-instructions.md"
+
+(
+    cd "$OUTPUT_ROOT"
+    tar -czf "$ARCHIVE_PATH" "$BUNDLE_NAME"
+)
+
+printf 'Candidate bundle created:\n' >&2
+printf ' - directory: %s\n' "$STAGING_DIR" >&2
+printf ' - archive:   %s\n' "$ARCHIVE_PATH" >&2

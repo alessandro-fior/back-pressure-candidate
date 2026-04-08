@@ -1,0 +1,23 @@
+{
+  "name": "@back-pressure/pulumi-docker",
+  "version": "0.1.0-phase1b",
+  "private": true,
+  "main": "src/index.ts",
+  "description": "Phase 1B Pulumi Docker local stack for the Back Pressure repository.",
+  "engines": {
+    "node": "20.19.0"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "preview": "pulumi preview",
+    "up": "pulumi up",
+    "destroy": "pulumi destroy"
+  },
+  "dependencies": {
+    "@pulumi/docker": "4.11.1",
+    "@pulumi/pulumi": "3.228.0"
+  },
+  "devDependencies": {
+    "typescript": "5.8.2"
+  }
+}

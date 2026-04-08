@@ -1,0 +1,21 @@
+# Phase 0 pins for future modules. Keep this catalog small until real modules exist.
+[versions]
+java = "21"
+gradle = "8.10.2"
+spring-boot = "3.5.13"
+kotlin = "1.9.25"
+scala = "3.3.1"
+pekko = "1.4.0"
+node = "20.19.0"
+typescript = "5.8.2"
+pulumi = "3.228.0"
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+
+[libraries]
+scala3-library = { module = "org.scala-lang:scala3-library_3", version.ref = "scala" }
+pekko-actor-typed = { module = "org.apache.pekko:pekko-actor-typed_3", version.ref = "pekko" }
+pekko-stream = { module = "org.apache.pekko:pekko-stream_3", version.ref = "pekko" }

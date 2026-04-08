@@ -1,0 +1,6 @@
+name: back-pressure-local
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+description: Phase 1A Pulumi Docker skeleton for the Back Pressure repository.

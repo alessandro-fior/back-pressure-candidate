@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kynetics.example/back-pressure/contracts/schemas/scenario-config.schema.json",
+  "title": "ScenarioConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scenarioId",
+    "targetJobsPerSecond",
+    "numberRange",
+    "imageWidthPx",
+    "imageHeightPx",
+    "maxInFlight",
+    "workerQueueCapacity",
+    "workerParallelism",
+    "baseDecodeLatencyMs",
+    "latencyJitterMs"
+  ],
+  "properties": {
+    "scenarioId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "targetJobsPerSecond": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "numberRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "type": "integer" },
+        "max": { "type": "integer" }
+      }
+    },
+    "imageWidthPx": {
+      "type": "integer",
+      "minimum": 32
+    },
+    "imageHeightPx": {
+      "type": "integer",
+      "minimum": 16
+    },
+    "maxInFlight": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "workerQueueCapacity": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "workerParallelism": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "baseDecodeLatencyMs": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "latencyJitterMs": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

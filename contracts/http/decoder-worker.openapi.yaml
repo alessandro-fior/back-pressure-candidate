@@ -1,0 +1,126 @@
+openapi: 3.1.0
+info:
+  title: Back Pressure Decoder Worker API
+  version: 0.1.0-phase1a
+  description: Phase 1A contract freeze for the Scala decoder-worker service.
+servers:
+  - url: http://decoder-worker:8082
+paths:
+  /internal/decoder/config:
+    put:
+      operationId: putDecoderConfig
+      summary: Apply queue size, latency, and parallelism settings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - scenarioId
+                - workerQueueCapacity
+                - workerParallelism
+                - baseDecodeLatencyMs
+                - latencyJitterMs
+              properties:
+                scenarioId:
+                  type: string
+                workerQueueCapacity:
+                  type: integer
+                  minimum: 1
+                workerParallelism:
+                  type: integer
+                  minimum: 1
+                baseDecodeLatencyMs:
+                  type: integer
+                  minimum: 1
+                latencyJitterMs:
+                  type: integer
+                  minimum: 0
+      responses:
+        '200':
+          description: Applied decoder-worker configuration.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [scenarioId, status]
+                properties:
+                  scenarioId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [configured]
+  /internal/decoder/workloads:
+    post:
+      operationId: postWorkload
+      summary: Attempt to admit one workload job into the bounded stream.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/workload-job.schema.json
+      responses:
+        '202':
+          description: Workload admitted.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [jobId, scenarioId, admission, queueDepth]
+                properties:
+                  jobId:
+                    type: string
+                  scenarioId:
+                    type: string
+                  admission:
+                    type: string
+                    enum: [accepted]
+                  queueDepth:
+                    type: integer
+                    minimum: 0
+        '429':
+          description: Worker is saturated and cannot admit more work.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status, reason, queueDepth]
+                properties:
+                  status:
+                    type: string
+                    enum: [saturated]
+                  reason:
+                    type: string
+                  queueDepth:
+                    type: integer
+                    minimum: 0
+  /internal/decoder/metrics:
+    get:
+      operationId: getDecoderMetrics
+      summary: Return decoder-worker operational metrics.
+      responses:
+        '200':
+          description: Current decoder metrics snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/metrics-snapshot.schema.json
+  /internal/decoder/results/recent:
+    get:
+      operationId: getRecentDecoderResults
+      summary: Return the in-memory ring buffer of recent decode results.
+      responses:
+        '200':
+          description: Recent decoder results.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ../schemas/decoder-result.schema.json

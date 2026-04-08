@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backpressure Demo Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Backpressure Demo Dashboard</h1>
+            <div id="status-indicator" class="status-badge idle">IDLE</div>
+        </header>
+
+        <section class="scenario-section">
+            <div class="section-heading">
+                <div>
+                    <h2>Scenario Control</h2>
+                    <p class="section-copy">
+                        Tune the producer and decoder from the browser, then watch queue depth, saturation, and recovery tell the rebalancing story.
+                    </p>
+                </div>
+                <div id="scenario-message" class="scenario-message info">
+                    Loading current scenario...
+                </div>
+            </div>
+
+            <div class="scenario-layout">
+                <div class="scenario-panel scenario-summary">
+                    <h3>Live Scenario</h3>
+                    <p class="panel-copy">
+                        Auto-refresh keeps this snapshot aligned with the active control-plane overview.
+                    </p>
+                    <div class="scenario-info">
+                        <div class="info-card">
+                            <span class="label">Scenario ID</span>
+                            <span id="scenario-id" class="value">-</span>
+                        </div>
+                        <div class="info-card">
+                            <span class="label">Target Rate</span>
+                            <span class="value"><span id="target-rate">-</span> jobs/s</span>
+                        </div>
+                        <div class="info-card">
+                            <span class="label">Max In-Flight</span>
+                            <span id="max-inflight" class="value">-</span>
+                        </div>
+                        <div class="info-card">
+                            <span class="label">Queue Capacity</span>
+                            <span id="queue-capacity" class="value">-</span>
+                        </div>
+                        <div class="info-card">
+                            <span class="label">Worker Parallelism</span>
+                            <span id="worker-parallelism" class="value">-</span>
+                        </div>
+                        <div class="info-card">
+                            <span class="label">Decode Latency</span>
+                            <span class="value">
+                                <span id="base-latency">-</span> ± <span id="latency-jitter">-</span> ms
+                            </span>
+                        </div>
+                        <div class="info-card">
+                            <span class="label">Number Range</span>
+                            <span class="value">
+                                <span id="number-range-min">-</span> to <span id="number-range-max">-</span>
+                            </span>
+                        </div>
+                        <div class="info-card hint-card">
+                            <span class="label">Pressure Outlook</span>
+                            <span class="value">
+                                <span id="live-capacity">-</span> jobs/s capacity ·
+                                <span id="live-pressure">-</span>x pressure
+                            </span>
+                            <span id="live-pressure-story" class="hint-text">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="scenario-panel scenario-editor">
+                    <div class="editor-header">
+                        <div>
+                            <h3>Draft Scenario</h3>
+                            <p class="panel-copy">
+                                Edit a draft, apply it to the control plane, and if the scenario is already running the new settings are pushed downstream live.
+                            </p>
+                        </div>
+                        <div id="draft-state" class="draft-state">Waiting for live scenario...</div>
+                    </div>
+
+                    <div class="preset-row">
+                        <span class="preset-label">Presets</span>
+                        <div class="preset-buttons">
+                            <button type="button" class="btn btn-chip" id="preset-default" onclick="applyPreset('default')">Default</button>
+                            <button type="button" class="btn btn-chip" id="preset-light-pressure" onclick="applyPreset('lightPressure')">Light pressure</button>
+                            <button type="button" class="btn btn-chip" id="preset-saturation-demo" onclick="applyPreset('saturationDemo')">Saturation demo</button>
+                        </div>
+                    </div>
+
+                    <form id="scenario-form" class="scenario-form">
+                        <div class="form-grid">
+                            <label class="form-field">
+                                <span>Scenario ID</span>
+                                <input id="form-scenario-id" name="scenarioId" type="text" required maxlength="80">
+                            </label>
+                            <label class="form-field">
+                                <span>Target jobs per second</span>
+                                <input id="form-target-rate" name="targetJobsPerSecond" type="number" min="0.1" step="0.1" required>
+                            </label>
+                            <label class="form-field">
+                                <span>Max in-flight</span>
+                                <input id="form-max-inflight" name="maxInFlight" type="number" min="1" step="1" required>
+                            </label>
+                            <label class="form-field">
+                                <span>Worker queue capacity</span>
+                                <input id="form-queue-capacity" name="workerQueueCapacity" type="number" min="1" step="1" required>
+                            </label>
+                            <label class="form-field">
+                                <span>Worker parallelism</span>
+                                <input id="form-worker-parallelism" name="workerParallelism" type="number" min="1" step="1" required>
+                            </label>
+                            <label class="form-field">
+                                <span>Base decode latency (ms)</span>
+                                <input id="form-base-latency" name="baseDecodeLatencyMs" type="number" min="1" step="1" required>
+                            </label>
+                            <label class="form-field">
+                                <span>Latency jitter (ms)</span>
+                                <input id="form-latency-jitter" name="latencyJitterMs" type="number" min="0" step="1" required>
+                            </label>
+                            <label class="form-field">
+                                <span>Number range min</span>
+                                <input id="form-number-range-min" name="numberRangeMin" type="number" step="1" required>
+                            </label>
+                            <label class="form-field">
+                                <span>Number range max</span>
+                                <input id="form-number-range-max" name="numberRangeMax" type="number" step="1" required>
+                            </label>
+                        </div>
+
+                        <div class="draft-hint">
+                            <div class="hint-metric">
+                                <span class="label">Estimated decoder capacity</span>
+                                <strong id="draft-capacity">-</strong>
+                            </div>
+                            <div class="hint-metric">
+                                <span class="label">Pressure ratio</span>
+                                <strong id="draft-pressure">-</strong>
+                            </div>
+                            <div class="hint-story">
+                                <span class="label">What to expect</span>
+                                <span id="draft-pressure-story">Adjust the inputs to see whether the producer should outrun the decoder.</span>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="controls">
+                        <button id="apply-btn" class="btn btn-tertiary" type="button" onclick="applyScenario()">
+                            Apply Draft
+                        </button>
+                        <button id="reset-draft-btn" class="btn btn-ghost" type="button" onclick="resetDraftToLive()">
+                            Reset Draft
+                        </button>
+                        <button id="apply-start-btn" class="btn btn-primary" type="button" onclick="applyAndStartScenario()">
+                            <span class="btn-icon">↻</span> Apply &amp; Start
+                        </button>
+                        <button id="start-btn" class="btn btn-primary btn-outline" type="button" onclick="startScenario()">
+                            <span class="btn-icon">▶</span> Start current
+                        </button>
+                        <button id="stop-btn" class="btn btn-secondary" type="button" onclick="stopScenario()" disabled>
+                            <span class="btn-icon">■</span> Stop
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="metrics-section">
+            <h2>Live Metrics</h2>
+            <div class="metrics-grid">
+                <div class="metric-card generator">
+                    <h3>Workload Generator</h3>
+                    <div class="metric-row">
+                        <span class="metric-label">Requested Rate:</span>
+                        <span id="gen-requested" class="metric-value">-</span>
+                        <span class="metric-unit">jobs/s</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Accepted Rate:</span>
+                        <span id="gen-accepted" class="metric-value">-</span>
+                        <span class="metric-unit">jobs/s</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Completed Rate:</span>
+                        <span id="gen-completed" class="metric-value">-</span>
+                        <span class="metric-unit">jobs/s</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">In-Flight:</span>
+                        <span id="gen-inflight" class="metric-value">-</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Rejected Count:</span>
+                        <span id="gen-rejected" class="metric-value">-</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">State:</span>
+                        <span id="gen-state" class="metric-value state-badge">-</span>
+                    </div>
+                </div>
+
+                <div class="metric-card decoder">
+                    <h3>Decoder Worker</h3>
+                    <div class="metric-row">
+                        <span class="metric-label">Accepted Rate:</span>
+                        <span id="dec-accepted" class="metric-value">-</span>
+                        <span class="metric-unit">jobs/s</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Completed Rate:</span>
+                        <span id="dec-completed" class="metric-value">-</span>
+                        <span class="metric-unit">jobs/s</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Queue Depth:</span>
+                        <span id="dec-queue" class="metric-value">-</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">In-Flight:</span>
+                        <span id="dec-inflight" class="metric-value">-</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">P95 Latency:</span>
+                        <span id="dec-latency" class="metric-value">-</span>
+                        <span class="metric-unit">ms</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Rejected Count:</span>
+                        <span id="dec-rejected" class="metric-value">-</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">State:</span>
+                        <span id="dec-state" class="metric-value state-badge">-</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="results-section">
+            <h2>Recent Results</h2>
+            <div class="table-container">
+                <table id="results-table">
+                    <thead>
+                        <tr>
+                            <th>Job ID</th>
+                            <th>Expected</th>
+                            <th>Decoded</th>
+                            <th>Confidence</th>
+                            <th>Status</th>
+                            <th>Latency</th>
+                            <th>Completed At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body">
+                        <tr>
+                            <td colspan="7" class="no-data">No results yet. Start a scenario to see results.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer>
+            <div class="footer-info">
+                <span id="last-update">Last update: -</span>
+                <span class="separator">|</span>
+                <span>Auto-refresh: <span id="refresh-interval">2</span>s</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

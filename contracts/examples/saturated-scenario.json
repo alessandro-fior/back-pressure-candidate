@@ -1,0 +1,15 @@
+{
+  "scenarioId": "saturated-demo",
+  "targetJobsPerSecond": 30,
+  "numberRange": {
+    "min": 100,
+    "max": 9999
+  },
+  "imageWidthPx": 96,
+  "imageHeightPx": 48,
+  "maxInFlight": 12,
+  "workerQueueCapacity": 6,
+  "workerParallelism": 1,
+  "baseDecodeLatencyMs": 450,
+  "latencyJitterMs": 120
+}

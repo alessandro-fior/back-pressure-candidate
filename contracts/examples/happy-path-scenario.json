@@ -1,0 +1,15 @@
+{
+  "scenarioId": "happy-path-demo",
+  "targetJobsPerSecond": 6,
+  "numberRange": {
+    "min": 1,
+    "max": 999
+  },
+  "imageWidthPx": 96,
+  "imageHeightPx": 48,
+  "maxInFlight": 8,
+  "workerQueueCapacity": 24,
+  "workerParallelism": 4,
+  "baseDecodeLatencyMs": 90,
+  "latencyJitterMs": 20
+}

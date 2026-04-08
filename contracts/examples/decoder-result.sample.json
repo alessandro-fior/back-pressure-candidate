@@ -1,0 +1,15 @@
+{
+  "jobId": "job-000123",
+  "scenarioId": "happy-path-demo",
+  "expectedNumber": 123,
+  "decodedNumber": 123,
+  "confidence": 0.97,
+  "status": "decoded",
+  "processing": {
+    "enqueueWaitMs": 12,
+    "decodeLatencyMs": 84,
+    "totalLatencyMs": 96,
+    "workerInstanceId": "decoder-worker-1",
+    "completedAt": "2026-04-01T13:00:00.096Z"
+  }
+}

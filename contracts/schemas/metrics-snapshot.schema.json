@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kynetics.example/back-pressure/contracts/schemas/metrics-snapshot.schema.json",
+  "title": "MetricsSnapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "service",
+    "timestamp",
+    "requestedRate",
+    "acceptedRate",
+    "completedRate",
+    "inFlight",
+    "queueDepth",
+    "p95LatencyMs",
+    "rejectedCount",
+    "saturationState"
+  ],
+  "properties": {
+    "service": {
+      "type": "string",
+      "enum": ["control-plane", "workload-generator", "decoder-worker"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "requestedRate": {
+      "type": "number",
+      "minimum": 0
+    },
+    "acceptedRate": {
+      "type": "number",
+      "minimum": 0
+    },
+    "completedRate": {
+      "type": "number",
+      "minimum": 0
+    },
+    "inFlight": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "queueDepth": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "p95LatencyMs": {
+      "type": "number",
+      "minimum": 0
+    },
+    "rejectedCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "saturationState": {
+      "type": "string",
+      "enum": ["idle", "warming-up", "stable", "saturated"]
+    }
+  }
+}

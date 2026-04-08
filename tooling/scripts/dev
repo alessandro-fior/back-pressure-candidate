@@ -1,0 +1,221 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
+REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd -P)
+CONTAINER_RUNTIME=${CONTAINER_RUNTIME:-docker}
+REPO_NAME=$(basename "$REPO_ROOT" | tr '[:upper:]' '[:lower:]')
+IMAGE_TAG=${DEV_TOOLCHAIN_IMAGE:-${REPO_NAME}-dev-toolchain:base}
+DOCKERFILE="$REPO_ROOT/tooling/docker/dev-toolchain/Dockerfile"
+BUILD_CONTEXT="$REPO_ROOT/tooling/docker/dev-toolchain"
+GRADLE_CACHE_DIR="$REPO_ROOT/.gradle-user-home"
+NPM_CACHE_DIR="$REPO_ROOT/.npm-cache"
+PULUMI_HOME_DIR="$REPO_ROOT/.pulumi-home-docker"
+CONTAINER_PULUMI_HOME=/workspace/.pulumi-home-docker
+HOST_USER_NAME=${USER:-$(id -un 2>/dev/null || printf '%s' developer)}
+HOST_LOGNAME=${LOGNAME:-$HOST_USER_NAME}
+HOST_HOME=${HOME:-}
+DOCKER_SOCKET_MOUNT=
+DOCKER_HOST_VALUE=${DOCKER_HOST:-}
+
+if [ -n "$DOCKER_HOST_VALUE" ]; then
+    :
+elif [ -n "$HOST_HOME" ] && [ -S "$HOST_HOME/.docker/run/docker.sock" ]; then
+    DOCKER_HOST_VALUE="unix://$HOST_HOME/.docker/run/docker.sock"
+    DOCKER_SOCKET_MOUNT="-v $HOST_HOME/.docker/run/docker.sock:$HOST_HOME/.docker/run/docker.sock"
+elif [ -S /var/run/docker.sock ]; then
+    DOCKER_HOST_VALUE="unix:///var/run/docker.sock"
+    DOCKER_SOCKET_MOUNT="-v /var/run/docker.sock:/var/run/docker.sock"
+fi
+
+usage() {
+    cat <<EOF
+Usage: tooling/scripts/dev [--build] [--shell] [GRADLE_TASK_OR_OPTION...]
+
+Builds the repository toolchain image when needed, mounts the repository at
+/workspace, and delegates to ./gradlew inside the container.
+
+Examples:
+  tooling/scripts/dev
+  tooling/scripts/dev test
+  tooling/scripts/dev --build check
+  tooling/scripts/dev --shell
+
+Environment overrides:
+  CONTAINER_RUNTIME   Container runtime to use (default: docker)
+  DEV_TOOLCHAIN_IMAGE Override the container image tag
+EOF
+}
+
+die() {
+    printf 'error: %s\n' "$1" >&2
+    exit 1
+}
+
+build_requested=0
+open_shell=0
+container_user="$(id -u):$(id -g)"
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --build)
+            build_requested=1
+            shift
+            ;;
+        --shell)
+            open_shell=1
+            shift
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [ "$open_shell" -eq 1 ] && [ "$#" -gt 0 ]; then
+    die "Do not combine --shell with Gradle task arguments."
+fi
+
+if [ "$open_shell" -eq 0 ]; then
+    if [ "$#" -eq 0 ]; then
+        set -- toolchainCheck
+    fi
+
+    case "$1" in
+        ./gradlew|gradlew)
+            shift
+            ;;
+    esac
+
+    if [ "$#" -eq 0 ]; then
+        set -- toolchainCheck
+    fi
+fi
+
+requires_docker_daemon=0
+if [ "$open_shell" -eq 0 ]; then
+    for arg in "$@"; do
+        case "$arg" in
+            infraPreview|infraUp|infraDown|:infra:*|*:pulumiPreview|*:pulumiUp|*:pulumiDestroy)
+                requires_docker_daemon=1
+                break
+                ;;
+        esac
+    done
+fi
+
+if [ "$requires_docker_daemon" -eq 1 ] && [ -n "$DOCKER_SOCKET_MOUNT" ]; then
+    container_user="$(id -u):0"
+fi
+
+[ -f "$DOCKERFILE" ] || die "Missing toolchain Dockerfile at $DOCKERFILE."
+
+if [ "$open_shell" -eq 0 ]; then
+    [ -f "$REPO_ROOT/gradlew" ] || die "Missing $REPO_ROOT/gradlew. Add the Gradle wrapper before using the canonical toolchain path."
+    [ -x "$REPO_ROOT/gradlew" ] || die "$REPO_ROOT/gradlew exists but is not executable. Run: chmod +x $REPO_ROOT/gradlew"
+    [ -f "$REPO_ROOT/gradle/wrapper/gradle-wrapper.properties" ] || die "Missing Gradle wrapper metadata at $REPO_ROOT/gradle/wrapper/gradle-wrapper.properties."
+    [ -f "$REPO_ROOT/gradle/wrapper/gradle-wrapper.jar" ] || die "Missing Gradle wrapper jar at $REPO_ROOT/gradle/wrapper/gradle-wrapper.jar."
+fi
+
+command -v "$CONTAINER_RUNTIME" >/dev/null 2>&1 || die "Container runtime '$CONTAINER_RUNTIME' was not found. Install Docker or set CONTAINER_RUNTIME to a compatible runtime."
+"$CONTAINER_RUNTIME" info >/dev/null 2>&1 || die "Cannot talk to '$CONTAINER_RUNTIME'. Start Docker Desktop or the container daemon and retry."
+
+mkdir -p "$GRADLE_CACHE_DIR" "$NPM_CACHE_DIR" "$PULUMI_HOME_DIR"
+
+if [ "$build_requested" -eq 1 ] || ! "$CONTAINER_RUNTIME" image inspect "$IMAGE_TAG" >/dev/null 2>&1; then
+    printf 'Building %s\n' "$IMAGE_TAG" >&2
+    "$CONTAINER_RUNTIME" build -t "$IMAGE_TAG" -f "$DOCKERFILE" "$BUILD_CONTEXT"
+fi
+
+run_gradle() {
+    if [ -n "${TERM:-}" ]; then
+        # shellcheck disable=SC2086
+        exec "$CONTAINER_RUNTIME" run --rm \
+            --user "$container_user" \
+            -e HOME=/workspace \
+            -e GRADLE_USER_HOME=/workspace/.gradle-user-home \
+            -e npm_config_cache=/workspace/.npm-cache \
+            -e "PULUMI_HOME=$CONTAINER_PULUMI_HOME" \
+            -e "DOCKER_HOST=$DOCKER_HOST_VALUE" \
+            -e "USER=$HOST_USER_NAME" \
+            -e "LOGNAME=$HOST_LOGNAME" \
+            -e "TERM=$TERM" \
+            $DOCKER_SOCKET_MOUNT \
+            -v "$REPO_ROOT:/workspace" \
+            -w /workspace \
+            "$IMAGE_TAG" \
+            ./gradlew "$@"
+    fi
+
+    # shellcheck disable=SC2086
+    exec "$CONTAINER_RUNTIME" run --rm \
+        --user "$container_user" \
+        -e HOME=/workspace \
+        -e GRADLE_USER_HOME=/workspace/.gradle-user-home \
+        -e npm_config_cache=/workspace/.npm-cache \
+        -e "PULUMI_HOME=$CONTAINER_PULUMI_HOME" \
+        -e "DOCKER_HOST=$DOCKER_HOST_VALUE" \
+        -e "USER=$HOST_USER_NAME" \
+        -e "LOGNAME=$HOST_LOGNAME" \
+        $DOCKER_SOCKET_MOUNT \
+        -v "$REPO_ROOT:/workspace" \
+        -w /workspace \
+        "$IMAGE_TAG" \
+        ./gradlew "$@"
+}
+
+run_shell() {
+    shell_tty=-i
+    if [ -t 0 ] && [ -t 1 ]; then
+        shell_tty=-it
+    fi
+
+    if [ -n "${TERM:-}" ]; then
+        # shellcheck disable=SC2086
+        exec "$CONTAINER_RUNTIME" run --rm "$shell_tty" \
+            --user "$container_user" \
+            -e HOME=/workspace \
+            -e GRADLE_USER_HOME=/workspace/.gradle-user-home \
+            -e npm_config_cache=/workspace/.npm-cache \
+            -e "PULUMI_HOME=$CONTAINER_PULUMI_HOME" \
+            -e "DOCKER_HOST=$DOCKER_HOST_VALUE" \
+            -e "USER=$HOST_USER_NAME" \
+            -e "LOGNAME=$HOST_LOGNAME" \
+            -e "TERM=$TERM" \
+            $DOCKER_SOCKET_MOUNT \
+            -v "$REPO_ROOT:/workspace" \
+            -w /workspace \
+            "$IMAGE_TAG" \
+            bash
+    fi
+
+    # shellcheck disable=SC2086
+    exec "$CONTAINER_RUNTIME" run --rm "$shell_tty" \
+        --user "$container_user" \
+        -e HOME=/workspace \
+        -e GRADLE_USER_HOME=/workspace/.gradle-user-home \
+        -e npm_config_cache=/workspace/.npm-cache \
+        -e "PULUMI_HOME=$CONTAINER_PULUMI_HOME" \
+        -e "DOCKER_HOST=$DOCKER_HOST_VALUE" \
+        -e "USER=$HOST_USER_NAME" \
+        -e "LOGNAME=$HOST_LOGNAME" \
+        $DOCKER_SOCKET_MOUNT \
+        -v "$REPO_ROOT:/workspace" \
+        -w /workspace \
+        "$IMAGE_TAG" \
+        bash
+}
+
+if [ "$open_shell" -eq 1 ]; then
+    run_shell
+fi
+
+run_gradle "$@"

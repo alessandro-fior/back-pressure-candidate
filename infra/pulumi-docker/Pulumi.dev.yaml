@@ -1,0 +1,5 @@
+config:
+  back-pressure-local:controlPlanePort: "8080"
+  back-pressure-local:generatorPort: "8081"
+  back-pressure-local:decoderPort: "8082"
+encryptionsalt: v1:bfyLivGX5W8=:v1:j8y8glCS/QtE54AA:9uBlvWybidBgJYDddaEUjLVelSnm1g==

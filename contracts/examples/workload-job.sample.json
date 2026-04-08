@@ -1,0 +1,8 @@
+{
+  "jobId": "job-000123",
+  "scenarioId": "happy-path-demo",
+  "sequence": 123,
+  "expectedNumber": 123,
+  "imagePngBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO6pQmEAAAAASUVORK5CYII=",
+  "createdAt": "2026-04-01T13:00:00Z"
+}
